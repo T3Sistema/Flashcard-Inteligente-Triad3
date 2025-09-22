@@ -443,7 +443,7 @@
     <div id="apiKeySetup" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid var(--color-border); border-radius: 8px; background-color: var(--bg-main);">
       <p style="margin: 0 0 10px 0; font-weight: 500; color: var(--text-primary);">Configuração da Chave da API</p>
       <div style="display: flex; gap: 10px; align-items: center;">
-        <input type="password" id="apiKeyInput" placeholder="Cole sua Chave da API do Google Gemini aqui" style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--color-border); background-color: var(--bg-surface); color: var(--text-primary);" aria-label="Chave da API do Google Gemini">
+        <input type="password" id="apiKeyInput" placeholder="Cole sua Chave da API aqui" style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--color-border); background-color: var(--bg-surface); color: var(--text-primary);" aria-label="Chave da API do Google Gemini">
         <button id="saveApiKeyButton" style="padding: 10px 18px; border-radius: 6px; background-color: var(--accent-primary); color: var(--text-primary); border: none; cursor: pointer;">Salvar</button>
       </div>
       <p style="font-size: 0.8em; color: var(--text-secondary); margin-top: 8px; margin-bottom: 0;">Sua chave é salva localmente no seu navegador.</p>
@@ -565,14 +565,11 @@ Se, mesmo com sua expertise, você não conseguir gerar flashcards que atendam a
 
       function checkApiKeyAndInitialize() {
         const userApiKey = localStorage.getItem('userApiKey');
-        const envApiKey = process.env.API_KEY;
 
         if (userApiKey) {
           initializeApi(userApiKey);
-        } else if (envApiKey) {
-          initializeApi(envApiKey);
         } else {
-          errorMessage.textContent = 'Chave da API não configurada. Por favor, insira sua chave abaixo.';
+          errorMessage.textContent = 'Para começar, por favor, insira sua chave da API.';
           apiKeySetup.style.display = 'block';
           generateButton.disabled = true;
           downloadCsvButton.disabled = true;
