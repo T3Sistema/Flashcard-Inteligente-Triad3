@@ -440,6 +440,14 @@
       aria-label="Tópico ou termos e definições para os flashcards"
       placeholder="digite aqui sua ideia ou necessidade com máximo detalhamento, por favor!"
     ></textarea>
+    <div id="apiKeySetup" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid var(--color-border); border-radius: 8px; background-color: var(--bg-main);">
+      <p style="margin: 0 0 10px 0; font-weight: 500; color: var(--text-primary);">Configuração da Chave da API</p>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <input type="password" id="apiKeyInput" placeholder="Cole sua Chave da API do Google Gemini aqui" style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--color-border); background-color: var(--bg-surface); color: var(--text-primary);" aria-label="Chave da API do Google Gemini">
+        <button id="saveApiKeyButton" style="padding: 10px 18px; border-radius: 6px; background-color: var(--accent-primary); color: var(--text-primary); border: none; cursor: pointer;">Salvar</button>
+      </div>
+      <p style="font-size: 0.8em; color: var(--text-secondary); margin-top: 8px; margin-bottom: 0;">Sua chave é salva localmente no seu navegador.</p>
+    </div>
     <div class="buttons-bar">
       <button id="generateButton">Gerar Flashcards</button>
       <button id="clearButton">Limpar Tela</button>
@@ -493,6 +501,10 @@
     const closeSettingsButton = document.getElementById('closeSettingsButton');
     let previouslyFocusedElement = null;
 
+    const apiKeySetup = document.getElementById('apiKeySetup');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const saveApiKeyButton = document.getElementById('saveApiKeyButton');
+
     let currentFlashcardsData = [];
 
     const DEFAULT_PROMPT_TEMPLATE = `Sua missão é criar um conjunto de flashcards de alto impacto e valor estratégico sobre o tópico: "{{topic}}".
@@ -526,24 +538,62 @@ Se, mesmo com sua expertise, você não conseguir gerar flashcards que atendam a
     let currentPrompt = localStorage.getItem('customPrompt') || DEFAULT_PROMPT_TEMPLATE;
 
     if (!topicInput || !generateButton || !clearButton || !downloadCsvButton || !downloadPdfButton || !settingsButton || !flashcardsContainer || !errorMessage ||
-        !settingsModal || !promptEditor || !savePromptButton || !restoreDefaultPromptButton || !closeSettingsButton) {
+        !settingsModal || !promptEditor || !savePromptButton || !restoreDefaultPromptButton || !closeSettingsButton || !apiKeySetup || !apiKeyInput || !saveApiKeyButton) {
       console.error('Elementos essenciais da UI ou do modal estão faltando no DOM.');
       if(errorMessage) errorMessage.textContent = 'Erro crítico: Elementos da UI ausentes. O aplicativo não pode iniciar.';
     } else {
       let ai;
-      const apiKey = process.env.API_KEY;
 
-      if (!apiKey) {
-        errorMessage.textContent = 'Chave da API não configurada. A aplicação não pode funcionar.';
-        generateButton.disabled = true;
-        downloadCsvButton.disabled = true;
-        downloadPdfButton.disabled = true;
-        settingsButton.disabled = true;
-      } else {
-        ai = new GoogleGenAI({ apiKey });
-        downloadCsvButton.disabled = true;
-        downloadPdfButton.disabled = true;
+      function initializeApi(key) {
+        try {
+          ai = new GoogleGenAI({ apiKey: key });
+          errorMessage.textContent = 'API inicializada com sucesso!';
+          setTimeout(() => errorMessage.textContent = '', 2000);
+          apiKeySetup.style.display = 'none';
+          generateButton.disabled = false;
+          settingsButton.disabled = false;
+          downloadCsvButton.disabled = true; // Still requires data
+          downloadPdfButton.disabled = true; // Still requires data
+          return true;
+        } catch (e) {
+          console.error("Erro ao inicializar a API:", e);
+          errorMessage.textContent = 'A chave da API fornecida parece ser inválida.';
+          localStorage.removeItem('userApiKey'); // Remove invalid key
+          return false;
+        }
       }
+
+      function checkApiKeyAndInitialize() {
+        const userApiKey = localStorage.getItem('userApiKey');
+        const envApiKey = process.env.API_KEY;
+
+        if (userApiKey) {
+          initializeApi(userApiKey);
+        } else if (envApiKey) {
+          initializeApi(envApiKey);
+        } else {
+          errorMessage.textContent = 'Chave da API não configurada. Por favor, insira sua chave abaixo.';
+          apiKeySetup.style.display = 'block';
+          generateButton.disabled = true;
+          downloadCsvButton.disabled = true;
+          downloadPdfButton.disabled = true;
+          settingsButton.disabled = true;
+        }
+      }
+      
+      saveApiKeyButton.addEventListener('click', () => {
+        const newKey = apiKeyInput.value.trim();
+        if (newKey) {
+          if (initializeApi(newKey)) {
+             localStorage.setItem('userApiKey', newKey);
+             apiKeyInput.value = ''; // Clear after save
+          }
+        } else {
+          errorMessage.textContent = 'Por favor, insira uma chave da API.';
+        }
+      });
+      
+      checkApiKeyAndInitialize(); // Run on startup
       
       // --- Clear Screen Logic ---
       clearButton.addEventListener('click', () => {
@@ -689,7 +739,8 @@ Se, mesmo com sua expertise, você não conseguir gerar flashcards que atendam a
 
       generateButton.addEventListener('click', async () => {
         if (!ai) {
-          errorMessage.textContent = 'A aplicação não foi inicializada corretamente devido a um problema com a chave da API.';
+          errorMessage.textContent = 'A API não foi inicializada. Por favor, configure sua chave da API.';
+          checkApiKeyAndInitialize(); // Re-trigger the check
           return;
         }
         const topic = topicInput.value.trim();
@@ -792,6 +843,8 @@ Se, mesmo com sua expertise, você não conseguir gerar flashcards que atendam a
           if (error && error.message) {
             if (error.message.includes('API key not valid')) {
                 displayError = 'A Chave da API não é válida. Verifique a configuração.';
+                localStorage.removeItem('userApiKey'); // Remove invalid key
+                checkApiKeyAndInitialize(); // Prompt for key again
             } else if (error.message.toLowerCase().includes('quota') || (error.status && error.status === 429)) {
                 displayError = 'Cota da API excedida. Verifique sua conta ou tente mais tarde.';
             } else {
